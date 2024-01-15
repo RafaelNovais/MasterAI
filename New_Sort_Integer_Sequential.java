@@ -1,27 +1,21 @@
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.RecursiveAction;
 
 public class New_Sort_Integer_Sequential {
-	/*Q3*/
 
 	public static void main(String[] args) {
-
 		Integer n = 100000;
 
-
 		Comparator<Integer> comparator = Integer::compare;
-
 
 		ArrayList<Integer> list = new ArrayList<>();
 		for (int i = 0; i < n; i++)
 			list.add((int) Math.ceil(Math.random() * n));
 
+		// Call the sorting method
+		sort(list, 0, n - 1, comparator);
 
-		parallelSort(list, comparator);
-
-
+		// Display the sorted list
 		for (int i = 0; i < n; i++) {
 			System.out.print(list.get(i) + ", ");
 			if (i > 0 && i % 20 == 0)
@@ -29,60 +23,41 @@ public class New_Sort_Integer_Sequential {
 		}
 	}
 
-	static void parallelSort(ArrayList<Integer> list, Comparator<Integer> comparator) {
-		ForkJoinPool pool = new ForkJoinPool();
-		pool.invoke(new ParallelSortTask(list, 0, list.size() - 1, comparator));
-		pool.shutdown();
-	}
-
-	static class ParallelSortTask extends RecursiveAction {
-		private static final int THRESHOLD = 1000;
-		private final ArrayList<Integer> list;
-		private final int left;
-		private final int right;
-		private final Comparator<Integer> comparator;
-
-		public ParallelSortTask(ArrayList<Integer> list, int left, int right, Comparator<Integer> comparator) {
-			this.list = list;
-			this.left = left;
-			this.right = right;
-			this.comparator = comparator;
-		}
-
-		@Override
-		protected void compute() {
-			if (right - left <= THRESHOLD) {
-
-				New_Sort_Integer_Sequential.sort(list, left, right, comparator);
-			} else {
-
-				int s = New_Sort_Integer_Sequential.part(list, left, right, comparator);
-				ParallelSortTask leftTask = new ParallelSortTask(list, left, s - 1, comparator);
-				ParallelSortTask rightTask = new ParallelSortTask(list, s + 1, right, comparator);
-
-				invokeAll(leftTask, rightTask);
-			}
-		}
-	}
-
+	// Recursive sorting method with multithreading
 	static void sort(ArrayList<Integer> list, Integer left, Integer right, Comparator<Integer> comparator) {
+		// Base case: If the sublist is already sorted or empty
 		if (right <= left)
 			return;
 
+		// Partition the list and get the pivot
 		Integer s = part(list, left, right, comparator);
 
-		sort(list, left, s - 1, comparator);
+		// Create two threads for the left and right Partition
+		Thread leftThread = new Thread(() -> sort(list, left, s - 1, comparator));
+		Thread rightThread = new Thread(() -> sort(list, s + 1, right, comparator));
 
-		sort(list, s + 1, right, comparator);
+		// Start the threads
+		leftThread.start();
+		rightThread.start();
+
+		try {
+			// Wait for the threads to complete
+			leftThread.join();
+			rightThread.join();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
 
+	// Partitioning method
 	static Integer part(ArrayList<Integer> list, Integer left, Integer right, Comparator<Integer> comparator) {
 		assert (left < right);
 
 		Integer i = left - 1, j = right;
 
 		for (;;) {
-			while (comparator.compare(list.get(++i), list.get(right)) < 0);
+			while (comparator.compare(list.get(++i), list.get(right)) < 0)
+				;
 
 			while (comparator.compare(list.get(right), list.get(--j)) < 0)
 				if (j.equals(left))
@@ -99,6 +74,7 @@ public class New_Sort_Integer_Sequential {
 		return i;
 	}
 
+	// Swap elements in the list
 	static void swap(ArrayList<Integer> list, Integer i, Integer j) {
 		Integer h = list.get(i);
 		list.set(i, list.get(j));
